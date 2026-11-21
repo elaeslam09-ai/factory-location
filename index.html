@@ -1,0 +1,1189 @@
+<!doctype html>
+<html lang="ar"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>body{margin:0}[hidden]{display:none!important}</style>
+<title>تقييم موقع المصنع</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap">
+<style>
+/* Layout: one RTL column. Inputs first, then result band, editable factor table, per-place notes, reasons, sensitivity, method, sources, report + export. */
+:root {
+  --bg: #F2F5F7;
+  --surface: #FFFFFF;
+  --surface-2: #E8EDF1;
+  --ink: #14212B;
+  --muted: #56677A;
+  --line: #D3DBE2;
+  --accent: #1B5E80;
+  --accent-ink: #FFFFFF;
+  --pop: #F2B705;
+  --on-pop: #14212B;
+  --res: #3F8F2E;
+  --mkt: #C2392B;
+  --inf: #1B5E80;
+  --font-display: "Readex Pro", "IBM Plex Sans Arabic", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans Arabic", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0F171D; --surface: #17222B; --surface-2: #1F2D38; --ink: #E7EDF2; --muted: #9AAAB7;
+    --line: #2C3B47; --accent: #5DAEDC; --accent-ink: #0F171D; --res: #6CC257; --mkt: #EF6F61; --inf: #5DAEDC;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0F171D; --surface: #17222B; --surface-2: #1F2D38; --ink: #E7EDF2; --muted: #9AAAB7;
+  --line: #2C3B47; --accent: #5DAEDC; --accent-ink: #0F171D; --res: #6CC257; --mkt: #EF6F61; --inf: #5DAEDC;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.7; }
+.page {
+  max-width: 1080px; margin: 0 auto; display: grid; gap: 20px;
+  padding-block: 28px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.page > * { min-width: 0; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.eyebrow { margin: 0; font-family: var(--font-body); font-size: 0.85rem; letter-spacing: 0.04em; color: var(--muted); }
+h1 { margin: 4px 0 6px; font-family: var(--font-display); font-weight: 700; font-size: clamp(1.8rem, 5vw, 2.6rem); line-height: 1.25; text-wrap: balance; }
+.lede { margin: 0; max-width: 62ch; color: var(--muted); }
+h2 { margin: 0; font-family: var(--font-display); font-weight: 600; font-size: 1.15rem; line-height: 1.4; text-wrap: balance; }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; }
+.card > header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; margin-bottom: 14px; }
+.hint { margin: 0; color: var(--muted); font-size: 0.9rem; }
+
+/* inputs */
+.inputs { display: grid; gap: 18px; }
+@media (min-width: 760px) { .inputs { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); align-items: start; } }
+.field { display: grid; gap: 6px; font-size: 0.88rem; color: var(--muted); align-content: start; }
+.field input, .loc-in { font: inherit; font-size: 1rem; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; min-width: 0; width: 100%; }
+.locs { display: grid; gap: 8px; }
+.locrow { display: flex; gap: 8px; align-items: center; }
+.locrow .loc-in { flex: 1 1 auto; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.chips .lbl { font-size: 0.8rem; color: var(--muted); }
+.chip { font: inherit; font-size: 0.85rem; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); cursor: pointer; }
+.chip:hover:not(:disabled) { border-color: var(--accent); }
+.chip:disabled { opacity: 0.5; cursor: not-allowed; }
+.btnrow { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn { font: inherit; font-size: 0.9rem; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 14px; cursor: pointer; white-space: nowrap; }
+.btn:hover:not(:disabled) { background: var(--surface-2); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; padding: 10px 20px; }
+.btn.primary:hover:not(:disabled) { background: var(--accent); opacity: 0.92; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: center; margin-top: 16px; }
+.msg { font-size: 0.9rem; color: var(--muted); }
+:where(button, input, select, textarea, summary):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pill { display: inline-block; font-size: 0.8rem; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--line); white-space: nowrap; }
+.pill.ok { color: var(--res); border-color: currentColor; }
+.pill.warn { background: color-mix(in srgb, var(--pop) 35%, var(--surface)); color: var(--ink); border-color: var(--pop); }
+.note { margin: 12px 0 0; font-size: 0.88rem; color: var(--muted); max-width: 75ch; }
+
+/* results band */
+.results { display: grid; gap: 20px; }
+@media (min-width: 860px) { .results { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); align-items: stretch; } }
+.winner { background: var(--accent); color: var(--accent-ink); border-radius: 10px; padding: 20px 22px; display: flex; flex-direction: column; gap: 6px; justify-content: center; scroll-margin-top: 16px; }
+.badge { align-self: flex-start; background: var(--pop); color: var(--on-pop); font-size: 0.8rem; font-weight: 600; padding: 2px 10px; border-radius: 999px; }
+.wname { font-family: var(--font-display); font-weight: 700; font-size: clamp(1.6rem, 4.5vw, 2.2rem); line-height: 1.25; overflow-wrap: anywhere; }
+.wscore { font-family: var(--font-mono); font-size: 1.15rem; direction: ltr; text-align: right; }
+.wscore b { font-size: 2rem; font-weight: 500; }
+.wnote { margin: 0; font-size: 0.95rem; opacity: 0.95; }
+.rank { display: grid; gap: 14px; align-content: start; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 0.85rem; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.gdot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.rows { display: grid; gap: 14px; }
+.row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 10px; align-items: baseline; }
+.pos { font-family: var(--font-mono); color: var(--muted); font-size: 0.85rem; min-width: 1.2em; }
+.rname { font-weight: 600; overflow-wrap: anywhere; }
+.rval { font-family: var(--font-mono); font-variant-numeric: tabular-nums; direction: ltr; }
+.track { grid-column: 1 / -1; display: flex; height: 14px; background: var(--surface-2); border-radius: 4px; overflow: hidden; }
+.seg { height: 100%; }
+.row.first .track { box-shadow: 0 0 0 2px var(--pop); }
+
+/* table */
+.toolbar { display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: center; margin-bottom: 14px; }
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
+table { border-collapse: separate; border-spacing: 0; width: 100%; min-width: 700px; }
+th, td { padding: 8px 12px; border-bottom: 1px solid var(--line); text-align: center; vertical-align: middle; background: var(--surface); }
+thead th { font-weight: 600; font-size: 0.9rem; background: var(--surface-2); overflow-wrap: anywhere; }
+.c-factor { text-align: right; min-width: 210px; }
+thead .c-factor, tfoot .c-factor { background: var(--surface-2); }
+.fname { font-weight: 500; }
+.fhint { font-size: 0.8rem; color: var(--muted); line-height: 1.4; }
+.grow td { text-align: right; background: var(--surface-2); font-size: 0.85rem; padding-block: 6px; }
+.grow .gname { font-weight: 600; margin-inline: 8px 12px; }
+.grow .gsum { color: var(--muted); font-family: var(--font-mono); font-size: 0.8rem; }
+td input[type="number"] { font: inherit; font-family: var(--font-mono); text-align: center; width: 4.4rem; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 5px 4px; }
+.sc.h0 { background: color-mix(in srgb, var(--accent) 0.0%, var(--surface)); }
+.sc.h1 { background: color-mix(in srgb, var(--accent) 2.4%, var(--surface)); }
+.sc.h2 { background: color-mix(in srgb, var(--accent) 4.8%, var(--surface)); }
+.sc.h3 { background: color-mix(in srgb, var(--accent) 7.2%, var(--surface)); }
+.sc.h4 { background: color-mix(in srgb, var(--accent) 9.6%, var(--surface)); }
+.sc.h5 { background: color-mix(in srgb, var(--accent) 12.0%, var(--surface)); }
+.sc.h6 { background: color-mix(in srgb, var(--accent) 14.4%, var(--surface)); }
+.sc.h7 { background: color-mix(in srgb, var(--accent) 16.8%, var(--surface)); }
+.sc.h8 { background: color-mix(in srgb, var(--accent) 19.2%, var(--surface)); }
+.sc.h9 { background: color-mix(in srgb, var(--accent) 21.6%, var(--surface)); }
+.sc.h10 { background: color-mix(in srgb, var(--accent) 24.0%, var(--surface)); }
+td.sc.best input { border-color: var(--pop); box-shadow: 0 0 0 1px var(--pop); font-weight: 600; }
+tfoot th, tfoot td { font-weight: 600; background: var(--surface-2); border-bottom: 0; }
+tfoot td span { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+tfoot td.win { box-shadow: inset 0 -4px 0 var(--pop); }
+
+/* notes + reasons */
+.nl, .rl, .srcl, .lim { margin: 0; padding-inline-start: 1.2rem; display: grid; gap: 6px; }
+.nl li b, .rl b, .srcl li b { font-weight: 600; }
+.rs { padding-block: 10px; border-top: 1px solid var(--line); }
+.rs:first-child { border-top: 0; padding-top: 0; }
+.rl { margin-top: 4px; gap: 2px; font-size: 0.92rem; color: var(--muted); }
+.rl b { color: var(--ink); }
+.srcl, .lim { font-size: 0.95rem; }
+
+/* sensitivity */
+.sens { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.sens li { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; }
+.sens .txt { flex: 1 1 18rem; min-width: 0; }
+
+/* method + report */
+.steps { margin: 0; padding-inline-start: 1.4rem; display: grid; gap: 6px; }
+.formula { direction: ltr; text-align: left; font-family: var(--font-mono); background: var(--surface-2); border-radius: 8px; padding: 12px 16px; margin: 14px 0 8px; overflow-x: auto; }
+.example { margin: 0; font-size: 0.92rem; color: var(--muted); }
+.report { background: var(--surface-2); border-radius: 8px; padding: 14px 16px; margin: 0 0 12px; overflow-wrap: anywhere; user-select: text; }
+footer { color: var(--muted); font-size: 0.85rem; }
+
+/* facts */
+table.facts { min-width: 920px; }
+.facts th, .facts td { text-align: right; vertical-align: top; font-size: 0.9rem; line-height: 1.6; min-width: 200px; }
+.facts th.fk { min-width: 150px; font-weight: 600; background: var(--surface-2); }
+.facts thead th { background: var(--surface-2); }
+.facts th.mine { box-shadow: inset 0 -4px 0 var(--pop); }
+.facts td.na { color: var(--muted); }
+.facts td.natc { background: color-mix(in srgb, var(--accent) 6%, var(--surface)); }
+.facts td a { font-size: 0.75rem; text-decoration: none; color: var(--accent); white-space: nowrap; }
+.facts td a:hover { text-decoration: underline; }
+.srcl a { color: var(--accent); overflow-wrap: anywhere; }
+ol.srcl { padding-inline-start: 2rem; }
+.facts td.est { font-style: italic; background: color-mix(in srgb, var(--pop) 14%, var(--surface)); }
+details { margin-top: 14px; }
+details > summary { cursor: pointer; font-weight: 600; padding-block: 6px; }
+details[open] > summary { margin-bottom: 8px; }
+
+</style>
+
+</head><body>
+<div class="page" dir="rtl" lang="ar">
+  <header>
+    <p class="eyebrow">أبحاث صناعية وهندسة صناعية · اختيار موقع المصنع</p>
+    <h1>تقييم موقع المصنع</h1>
+    <p class="lede">اكتب أسماء الأماكن وقيّم كل عامل من 0 إلى 10 في الجدول مستعيناً بقسم الحقائق والأرقام، ويحسب الموقع الدرجة والترتيب فوراً بطريقة التقييم بالأوزان.</p>
+  </header>
+
+  <section class="card" aria-labelledby="in-h">
+    <header>
+      <h2 id="in-h">المدخلات</h2>
+      <span class="pill" id="srcpill"></span>
+    </header>
+    <div class="inputs">
+      <div class="field">
+        <label for="product">نوع النشاط أو المنتج</label>
+        <input id="product" type="text" autocomplete="off" placeholder="مثال: صناعة أثاث خشبي">
+      </div>
+      <div class="field" role="group" aria-labelledby="locs-l">
+        <span id="locs-l">الأماكن المراد مقارنتها (من 2 إلى 5)</span>
+        <div class="locs" id="locs"></div>
+        <div class="chips" id="plchips" role="group" aria-label="أماكن شائعة"></div>
+        <div class="btnrow">
+          <button class="btn" id="addloc" type="button">+ إضافة مكان</button>
+          <button class="btn" id="suggest" type="button" hidden>اقترح لي أماكن</button>
+        </div>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn primary" id="analyze" type="button" disabled>حلل بالذكاء الاصطناعي</button>
+      <button class="btn" id="stop" type="button" hidden>إيقاف</button>
+      <span class="msg" id="aimsg" role="status">جارٍ تجهيز التحليل...</span>
+    </div>
+    <p class="note" id="srcnote"></p>
+  </section>
+
+  <section class="results" aria-labelledby="res-h">
+    <h2 id="res-h" class="sr">النتيجة</h2>
+    <div class="winner" id="winner" aria-live="polite"></div>
+    <div class="card rank">
+      <div class="legend" aria-label="مفتاح الألوان">
+        <span><i class="gdot" style="background:var(--res)"></i>الموارد</span>
+        <span><i class="gdot" style="background:var(--mkt)"></i>السوق</span>
+        <span><i class="gdot" style="background:var(--inf)"></i>البنية التحتية</span>
+        <span>الشريط الكامل = 10 درجات</span>
+      </div>
+      <div class="rows" id="rank"></div>
+      <p class="hint" id="sens-line"></p>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="tbl-h">
+    <header>
+      <h2 id="tbl-h">الأوزان والتقييمات</h2>
+      <span class="pill" id="wstatus"></span>
+    </header>
+    <div class="toolbar">
+      <button class="btn" id="normalize" type="button">اجعل مجموع الأوزان 100</button>
+      <button class="btn" id="reset" type="button">استرجاع المثال الأصلي</button>
+    </div>
+    <div class="tablewrap" tabindex="0" role="region" aria-label="جدول التقييم">
+      <table id="tbl"></table>
+    </div>
+    <p class="note">عدّل أي رقم وتتحدث النتيجة فوراً. الدرجة = مجموع (الوزن × التقييم) ÷ مجموع الأوزان. الأعلى هو الأفضل للشركة، فالتكلفة الأقل تأخذ درجة أعلى.</p>
+    <details>
+      <summary>مبررات التقييم وملخص كل مكان</summary>
+      <div id="notes-card" hidden><ul class="nl" id="notes"></ul></div>
+      <div id="reasons"></div>
+    </details>
+  </section>
+
+  <section class="card" aria-labelledby="fx-h">
+    <header>
+      <h2 id="fx-h">الحقائق والأرقام</h2>
+      <span class="pill ok">تاريخ الاطلاع 21 نوفمبر 2026</span>
+    </header>
+    <p class="hint" style="margin-bottom:12px">كل رقم جنبه رابط مصدره. الخلية المائلة بخلفية صفراء هي تقدير مني وليست رقماً منشوراً. العمود ذو الخط الأصفر هو مكان في مقارنتك. تحقق من الجهة الرسمية قبل أي قرار استثماري.</p>
+    <div class="legend" style="margin-bottom:12px" aria-label="مفتاح الألوان">
+      <span><i class="gdot" style="background:var(--res)"></i>الموارد</span>
+      <span><i class="gdot" style="background:var(--mkt)"></i>السوق</span>
+      <span><i class="gdot" style="background:var(--inf)"></i>البنية التحتية</span>
+    </div>
+    <div class="tablewrap" tabindex="0" role="region" aria-label="جدول الحقائق">
+      <table class="facts" id="facts-table"></table>
+    </div>
+
+    <h2 id="land-h" style="margin-top:24px;margin-bottom:10px">حاسبة تكلفة الأرض الصناعية</h2>
+    <div class="field" style="max-width:18rem;margin-bottom:12px">
+      <label for="plot">مساحة القطعة (م²)</label>
+      <input id="plot" type="number" min="100" step="100" value="5000" inputmode="numeric">
+    </div>
+    <div class="tablewrap" tabindex="0" role="region" aria-label="جدول تكلفة الأرض">
+      <table class="facts" id="land-table"></table>
+    </div>
+    <p class="msg" id="land-msg" role="status"></p>
+    <p class="note">الأسعار لقطع الأراضي الصناعية بحسب قرار نشرته EnterpriseAM في 20 أغسطس 2026 (سعر التمليك). مقابل الانتفاع السنوي 5% من سعر التمليك، وهو منشور للعاشر من رمضان وبدر ومحسوب بنفس القاعدة لأكتوبر وبرج العرب. الحساب لسعر الأرض فقط.</p>
+
+    <details>
+      <summary>المصادر (19)</summary>
+      <ol class="srcl" id="srcs"></ol>
+    </details>
+  </section>
+
+  <section class="card" aria-labelledby="src-h">
+    <header><h2 id="src-h">أين تتحقق من الأرقام</h2></header>
+    <ul class="srcl">
+      <li><b>العمالة والسوق:</b> الجهاز المركزي للتعبئة العامة والإحصاء (السكان والقوى العاملة والأجور).</li>
+      <li><b>الأرض:</b> الهيئة العامة للتنمية الصناعية وهيئة المجتمعات العمرانية الجديدة (أسعار وطرح الأراضي الصناعية).</li>
+      <li><b>الطاقة والمياه:</b> جهاز تنظيم مرفق الكهرباء وحماية المستهلك، والشركة القابضة لمياه الشرب والصرف الصحي (التعرفة).</li>
+      <li><b>الخامات والسوق:</b> اتحاد الصناعات المصرية والغرف الصناعية، ودراسات السوق المنشورة.</li>
+      <li><b>النقل:</b> المسافات إلى الميناء والمطار والعملاء من خرائط جوجل.</li>
+      <li><b>الضرائب والحوافز:</b> الهيئة العامة للاستثمار والمناطق الحرة ومصلحة الضرائب.</li>
+      <li><b>اللوائح البيئية:</b> جهاز شؤون البيئة بوزارة البيئة.</li>
+    </ul>
+    <p class="note">الأسعار والتعرفة تتغير، فخذ الرقم من الموقع الرسمي واذكر تاريخ الاطلاع في التقرير.</p>
+  </section>
+
+  <section class="card" aria-labelledby="rep-h">
+    <header><h2 id="rep-h">فقرة جاهزة للتقرير</h2></header>
+    <p class="report" id="report"></p>
+    <div class="actions" style="margin-top:0">
+      <button class="btn primary" id="copy" type="button">نسخ الفقرة</button>
+      <button class="btn" id="dlhtml" type="button" hidden>تحميل التقرير كاملاً</button>
+      <button class="btn" id="dlcsv" type="button" hidden>تحميل الجدول (CSV)</button>
+      <span class="msg" id="copymsg" role="status"></span>
+    </div>
+  </section>
+
+  <footer>المرجع: المحاضرة الأولى، تخطيط المنشأة واختيار موقع المصنع (Facility / Plant Location).</footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var GROUPS = { res: "الموارد", mkt: "السوق", inf: "البنية التحتية" };
+  var GKEYS = ["res", "mkt", "inf"];
+  var KEY = "wfr-site-v3";
+  var MAXL = 5, MINL = 2;
+  var ACTS = ["أثاث خشبي", "أغذية وبسكويت", "مضخات مياه", "ملابس جاهزة", "منتجات بلاستيك", "أجهزة كهربائية"];
+  var PLACES = ["العاشر من رمضان", "السادس من أكتوبر", "برج العرب", "العين السخنة", "مدينة بدر"];
+
+  var FACTORS = [
+    { g: "res", n: "العمالة", h: "التوفر والتكلفة والمهارات" },
+    { g: "res", n: "الخامات", h: "التوفر والتكلفة والجودة" },
+    { g: "res", n: "الأرض", h: "التوفر والملاءمة والتكلفة" },
+    { g: "res", n: "الطاقة", h: "التوفر والتكلفة" },
+    { g: "res", n: "المياه", h: "التوفر والجودة والتكلفة" },
+    { g: "mkt", n: "القرب من السوق", h: "المسافة إلى عملاء الشركة" },
+    { g: "mkt", n: "حجم السوق واحتياجاته", h: "الحجم الحالي والطلب المتوقع" },
+    { g: "inf", n: "النقل", h: "التوفر والتكلفة" },
+    { g: "inf", n: "المؤسسات المالية", h: "التوفر والقوة" },
+    { g: "inf", n: "الضرائب والاستقرار الحكومي", h: "وقيود الاستيراد والتصدير" },
+    { g: "inf", n: "اللوائح البيئية", h: "سهولة الاشتراطات والتراخيص" },
+    { g: "inf", n: "جودة الحياة والثقافة", h: "للعاملين والإدارة" }
+  ];
+  var EXW = [12, 10, 8, 8, 7, 15, 10, 12, 5, 6, 4, 3];
+  var EXS = [
+    [8, 9, 6, 5], [7, 7, 6, 6], [6, 5, 8, 7], [8, 8, 7, 7], [7, 7, 6, 5], [9, 9, 6, 7],
+    [8, 8, 6, 6], [8, 8, 9, 9], [8, 8, 7, 6], [7, 7, 8, 9], [6, 6, 7, 7], [7, 8, 7, 5]
+  ];
+
+  function defaults() {
+    return {
+      product: "أثاث خشبي",
+      locs: ["العاشر من رمضان", "السادس من أكتوبر", "برج العرب", "العين السخنة"],
+      f: FACTORS.map(function (_, i) { return { w: EXW[i], s: EXS[i].slice(), r: ["", "", "", ""] }; }),
+      notes: ["", "", "", ""],
+      src: "example", edited: false, stamp: ""
+    };
+  }
+
+  function clamp(v, lo, hi) { v = parseFloat(v); if (!isFinite(v)) return 0; return Math.min(hi, Math.max(lo, v)); }
+  function fmt(n) { return n.toFixed(2); }
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function h(tag, attrs, kids) {
+    var e = document.createElement(tag), k;
+    if (attrs) for (k in attrs) {
+      if (k === "class") e.className = attrs[k];
+      else if (k === "text") e.textContent = attrs[k];
+      else e.setAttribute(k, attrs[k]);
+    }
+    (kids || []).forEach(function (c) { e.appendChild(typeof c === "string" ? document.createTextNode(c) : c); });
+    return e;
+  }
+
+  function load() {
+    var d = defaults();
+    try {
+      var s = JSON.parse(localStorage.getItem(KEY));
+      if (!s || typeof s.product !== "string" || !Array.isArray(s.locs)) return d;
+      var n = s.locs.length;
+      if (n < MINL || n > MAXL || !Array.isArray(s.f) || s.f.length !== FACTORS.length) return d;
+      for (var i = 0; i < s.f.length; i++) {
+        if (!s.f[i] || !Array.isArray(s.f[i].s) || s.f[i].s.length !== n) return d;
+      }
+      d.product = s.product;
+      d.locs = s.locs.map(String);
+      d.f = s.f.map(function (x) {
+        return {
+          w: clamp(x.w, 0, 100),
+          s: x.s.map(function (v) { return clamp(v, 0, 10); }),
+          r: (Array.isArray(x.r) && x.r.length === n) ? x.r.map(String) : x.s.map(function () { return ""; })
+        };
+      });
+      d.notes = (Array.isArray(s.notes) && s.notes.length === n) ? s.notes.map(String) : s.locs.map(function () { return ""; });
+      d.src = s.src === "ai" ? "ai" : "example";
+      d.edited = !!s.edited;
+      d.stamp = typeof s.stamp === "string" ? s.stamp : "";
+    } catch (e) {}
+    return d;
+  }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+
+  var state = load();
+  function nL() { return state.locs.length; }
+  function name(j) { return (state.locs[j] || "").trim() || "مكان " + (j + 1); }
+  function stampNow() { return JSON.stringify([state.product.trim(), state.locs.map(function (l) { return l.trim(); })]); }
+
+  function setLocs(arr) {
+    var n = arr.length;
+    state.locs = arr;
+    state.f.forEach(function (f) {
+      while (f.s.length < n) f.s.push(5);
+      while (f.r.length < n) f.r.push("");
+      f.s.length = n; f.r.length = n;
+    });
+    while (state.notes.length < n) state.notes.push("");
+    state.notes.length = n;
+  }
+
+  function calc(mult) {
+    mult = mult || { res: 1, mkt: 1, inf: 1 };
+    var sw = 0, out = [], i, j;
+    state.f.forEach(function (f, i2) { sw += f.w * mult[FACTORS[i2].g]; });
+    for (j = 0; j < nL(); j++) out.push({ res: 0, mkt: 0, inf: 0, total: 0 });
+    if (sw > 0) {
+      for (i = 0; i < state.f.length; i++) {
+        var g = FACTORS[i].g, f = state.f[i];
+        for (j = 0; j < nL(); j++) {
+          var c = f.w * mult[g] * f.s[j] / sw;
+          out[j][g] += c; out[j].total += c;
+        }
+      }
+    }
+    return out;
+  }
+  function rankOf(out) {
+    var idx = out.map(function (_, j) { return j; });
+    idx.sort(function (a, b) { return (out[b].total - out[a].total) || (a - b); });
+    return idx;
+  }
+  function weightSum() { return state.f.reduce(function (a, f) { return a + f.w; }, 0); }
+  function groupSum(g) { return state.f.reduce(function (a, f, i) { return FACTORS[i].g === g ? a + f.w : a; }, 0); }
+  function normalizeWeights() {
+    var sum = weightSum();
+    if (sum <= 0) return;
+    state.f.forEach(function (f) { f.w = Math.round(f.w * 100 / sum); });
+    var diff = 100 - weightSum(), big = 0;
+    state.f.forEach(function (f, i) { if (f.w > state.f[big].w) big = i; });
+    state.f[big].w += diff;
+  }
+  function sensitivity(winner) {
+    return GKEYS.map(function (g) {
+      var m = { res: 1, mkt: 1, inf: 1 }; m[g] = 1.5;
+      var ord = rankOf(calc(m));
+      return { g: g, winner: ord[0], same: ord[0] === winner };
+    });
+  }
+
+  /* ---------- verified facts (each number carries its source) ---------- */
+  var ACCESSED = "21 نوفمبر 2026";
+  var NA = "غير متاح";
+  var SRC = [
+    null,
+    { t: "EnterpriseAM، 20 أغسطس 2026: أسعار الأراضي الصناعية وشروط السداد", u: "https://enterpriseam.com/egypt/2026/08/20/govt-raises-industrial-land-prices-again-as-it-widens-payment-and-tenure-options/" },
+    { t: "Zawya: قرار أسعار الغاز للصناعة، سارٍ من 1 مايو 2026", u: "https://www.zawya.com/en/economy/north-africa/egypt-madbouly-sets-new-natural-gas-prices-for-industry-petrochemicals-sector-a5brcg66" },
+    { t: "إيجي إن، 3 نوفمبر 2026: أسعار الكهرباء للمصانع (المصدر لم يذكر تاريخ السريان)", u: "https://www.egyin.com/article/158159/%D8%A3%D8%B3%D8%B9%D8%A7%D8%B1-%D8%A7%D9%84%D9%83%D9%87%D8%B1%D8%A8%D8%A7%D8%A1-%D9%84%D9%84%D9%85%D8%B5%D8%A7%D9%86%D8%B9-%D9%81%D9%8A-%D9%85%D8%B5%D8%B1-2026-%D8%AA%D8%B9%D8%B1%D9%8A%D9%81%D8%A9" },
+    { t: "اليوم السابع: الحد الأدنى لأجور القطاع الخاص 8,500 جنيه من 1 يناير 2027", u: "https://youm7.com/7619636" },
+    { t: "المال: الحد الأدنى للأجور 7,000 جنيه من مارس 2025", u: "https://almalnews.com/1956806/اعتبارًا-من-مارس-2025-رفع-الحد-الأدنى/" },
+    { t: "DLA Piper، 4 فبراير 2026: الاستثمار في المنطقة الاقتصادية لقناة السويس", u: "https://www.dlapiper.com/insights/publications/2026/02/investment-considerations-in-suez-canal-economic-zone" },
+    { t: "هيئة المنطقة الاقتصادية لقناة السويس: منطقة العين السخنة الصناعية (تاريخ غير محدد)", u: "https://sczone.eg/services/ain-sokhna-industrial-area-1/" },
+    { t: "رئاسة الجمهورية: منطقة وميناء العين السخنة (نوفمبر 2019)", u: "https://www.presidency.eg/EN/المشاريع-القومية/منطقة-وميناء-العين-السخنة/" },
+    { t: "Logistics Cluster: ميناء السخنة، المسافات والسعات (تاريخ غير محدد)", u: "https://dlca.logcluster.org/node/4630" },
+    { t: "ويكيبيديا: العاشر من رمضان (تاريخ البيانات غير محدد)", u: "https://en.wikipedia.org/wiki/10th_of_Ramadan" },
+    { t: "ويكيبيديا: السادس من أكتوبر (تاريخ البيانات غير محدد)", u: "https://en.wikipedia.org/wiki/6th_of_October_(city)" },
+    { t: "السويدي للتطوير: دراسة حالة مدينة أكتوبر الجديدة (تاريخ غير محدد)", u: "https://elsewedydevelopment.com/case-studies/new-october-city-case-study-egypts-emerging-hub-for-industrial-growth-and-investment-opportunities/" },
+    { t: "ويكيبيديا: برج العرب الجديدة (تاريخ البيانات غير محدد، وفيها تضارب في المساحة)", u: "https://en.wikipedia.org/wiki/New_Borg_El_Arab" },
+    { t: "عقار ماب: دليل برج العرب الجديدة (تاريخ غير محدد)", u: "https://aqarmap.com.eg/en/advice/learn-about-the-new-borg-el-arab-industrial-residential-city/" },
+    { t: "السويدي للتطوير: أنديستريا برج العرب (تاريخ غير محدد)", u: "https://elsewedydevelopment.com/opportunities/industria-borg-el-arab/" },
+    { t: "عن مصر، 19 فبراير 2025: تطوير مناطق العاشر من رمضان الصناعية", u: "https://aboutmsr.com/بمساحة-6-ملايين-متر-أعمال-تطوير-لـ-4-مناط/" },
+    { t: "Invest Albanknote، تحديث 1 سبتمبر 2026: تعرفة المياه للنشاط الصناعي (مصدر ثانوي)", u: "https://invest.albanknote.com/water-meter-price" },
+    { t: "أموال الغد، 28 يوليو 2026: تشغيل الموزع الثالث لتغذية المنطقة الصناعية بالعاشر من رمضان", u: "https://amwalalghad.com/2026/07/28/الإسكان-إطلاق-التيار-الكهربائي-بال/" },
+    { t: "عن مصر، 3 أغسطس 2025: مرافق المنطقة الصناعية الخامسة ببرج العرب الجديدة", u: "https://aboutmsr.com/مجمع-الصناعات-والمنطقة-الخامسة-شبك/" }
+  ];
+  var ZONES = [
+    { k: "tenth", n: "العاشر من رمضان", keys: ["العاشر", "10th", "tenth"] },
+    { k: "oct", n: "السادس من أكتوبر", keys: ["أكتوبر", "اكتوبر", "october"] },
+    { k: "bea", n: "برج العرب الجديدة", keys: ["برج العرب", "borg"] },
+    { k: "sok", n: "العين السخنة", keys: ["السخنة", "sokhna", "sukhna"] }
+  ];
+  function zoneKey(nm) {
+    var s = String(nm || "").toLowerCase(), i, j;
+    for (i = 0; i < ZONES.length; i++) for (j = 0; j < ZONES[i].keys.length; j++) if (s.indexOf(ZONES[i].keys[j]) >= 0) return ZONES[i].k;
+    if (s.indexOf("بدر") >= 0 || s.indexOf("badr") >= 0) return "badr";
+    return null;
+  }
+  function F(t, r) { return { t: t, r: r || [] }; }
+  function E(t, r) { return { t: "تقدير: " + t, r: r || [], est: true }; }
+  var ROWS = [
+    { g: "res", n: "العمالة: الأجور", nat: F("الحد الأدنى لأجر القطاع الخاص 7,000 جنيه شهرياً منذ مارس 2025، و8,500 جنيه اعتباراً من 1 يناير 2027.", [5, 4]) },
+    { g: "res", n: "العمالة: حجم القاعدة الصناعية", z: {
+      tenth: F("5,083 مصنعاً و353,656 فرصة عمل (تاريخ البيانات غير محدد).", [10]),
+      oct: F("1,853 مصنعاً في المنطقة الصناعية، ورأس مال استثماري نحو 72 مليار جنيه (تاريخ البيانات غير محدد).", [12]),
+      bea: F("أكثر من 1,300 مصنع برأسمال نحو 17.7 مليار جنيه، ونحو 103 آلاف فرصة عمل (تاريخ البيانات غير محدد).", [13]),
+      sok: F("أكثر من 240 مشروعاً قائماً، و12 مطوراً صناعياً، وطاقة استيعاب أكثر من 85 ألف فرصة عمل.", [7]) } },
+    { g: "res", n: "الخامات", nat: E("أغلب الخامات (خشب، حبيبات بلاستيك، مواد غذائية، قطع كهربائية) يتركز موردوها في القاهرة الكبرى والدلتا والموانئ، فالأقرب منها أقل في تكلفة نقل الخامات.") },
+    { g: "res", n: "الأرض: سعر المتر (تمليك)", z: {
+      tenth: F("3,300 جنيه/م². حق الانتفاع 165 جنيه/م² سنوياً.", [1]),
+      oct: F("3,220 جنيه/م². سعر الانتفاع غير مذكور.", [1]),
+      bea: F("2,440 جنيه/م² (برج العرب الجديدة). سعر الانتفاع غير مذكور.", [1]),
+      sok: F("لا يوجد سعر منشور موحد. تُحدد بعقد انتفاع مع هيئة المنطقة الاقتصادية لمدة تصل إلى 50 سنة قابلة للتجديد.", [6]) } },
+    { g: "res", n: "الأرض: المساحات المتاحة", z: {
+      tenth: F("مناطق قيد التطوير: 2 مليون م² و4 ملايين م² و710 أفدنة (فبراير 2025).", [16]),
+      oct: F("أنديستريا أكتوبر: 2.6 مليون م².", [12]),
+      bea: F("أنديستريا برج العرب: 1.4 مليون م²، وأصغر قطعة 2,500 م².", [15]),
+      sok: F("210 كم² منها أكثر من 162 كم² للتصنيع.", [7, 8]) } },
+    { g: "res", n: "الأرض: شروط السداد", nat: F("تمليك: دفعة مقدمة 25% ثم 3 أقساط سنوية بفائدة 12%، أو مسار ميسّر بدفعة 10% وأقساط ربع سنوية متساوية على 4 سنوات بفائدة 12%. حق الانتفاع: مقابل سنوي 5% من سعر التمليك يزيد 10% تراكمياً من السنة الثانية، لمدة تصل إلى 50 سنة. سنتا المهلة في المسار الميسّر لإنهاء المشروع والترخيص وليستا إعفاءً من الأقساط (قرار حكومي، أغسطس 2026).", [1]) },
+    { g: "res", n: "الطاقة: تعرفة الكهرباء للمصانع", nat: F("فائق الجهد (220 إلى 132 ك.ف) 189 قرشاً/ك.و.س، العالي (66 إلى 33 ك.ف) 205، المتوسط (22 إلى 11 ك.ف) 255، المنخفض (380 فولت) من 265 إلى 274 قرشاً. رسم خدمة العملاء 35 جنيهاً شهرياً للجهد المتوسط فأعلى. المصدر لم يذكر تاريخ السريان.", [3]) },
+    { g: "res", n: "الطاقة: الغاز الطبيعي", nat: F("الأنشطة الصناعية الأخرى من 6.50 إلى 6.75 دولار لكل مليون وحدة حرارية، الحديد والصلب والأسمدة غير النيتروجينية والبتروكيماويات 7.75، الأسمنت 14. سارٍ من 1 مايو 2026.", [2]) },
+    { g: "res", n: "الطاقة: القدرة المتاحة", z: {
+      tenth: F("تشغيل الموزع الثالث والأخير لتغذية المنطقة الصناعية بين A1 وA6 (يوليو 2026). قدرة المحطة غير مذكورة.", [18]),
+      bea: E("بنية كهرباء قائمة بالمدينة. اسأل المطور عن القدرة المتاحة لمصنعك قبل التعاقد."),
+      oct: F("3 محطات محولات بقدرة 640 ميجا فولت أمبير، ومحطتان بقدرة 400 تحت التنفيذ.", [12]),
+      sok: F("طاقة كهربائية أكثر من 1,500 ميجا فولت أمبير.", [7]) } },
+    { g: "res", n: "المياه: القدرة المتاحة", z: {
+      tenth: E("شبكة مياه مرتبطة بشركة مياه الشرب. اسأل عن الحصة المتاحة لمصنعك قبل الشراء."),
+      bea: F("مشروع شبكة مياه شرب وصرف للمنطقة الصناعية الخامسة (أغسطس 2025)، بدون أرقام قدرات.", [19]),
+      oct: F("محطة مياه بطاقة 268 ألف م³/يوم، وخط الشيخ زايد 125 ألف م³/يوم.", [12]),
+      sok: F("محطة تحلية بطاقة أكثر من 100 ألف م³/يوم، ومحطة معالجة صرف 35 ألف م³/يوم.", [7]) } },
+    { g: "res", n: "المياه: التعرفة", nat: F("4.55 جنيه/م³ للنشاط الصناعي (تعرفة 2026). قد يُضاف مقابل صرف صحي حتى 98% من تعريفة المياه. المصدر ثانوي، فتحقق من الشركة القابضة لمياه الشرب.", [17]) },
+    { g: "mkt", n: "القرب من السوق", z: {
+      tenth: F("46 كم من القاهرة.", [10]),
+      oct: F("32 كم من وسط القاهرة (ويكيبيديا)، وحتى 59 كم لأطراف المنطقة الجديدة (السويدي).", [11, 12]),
+      bea: F("48 كم غرب الإسكندرية (عقار ماب)، و55 كم (ويكيبيديا). المسافة إلى القاهرة غير مذكورة.", [14, 13]),
+      sok: F("120 إلى 130 كم من القاهرة، وساعة بالسيارة حسب هيئة المنطقة.", [9, 7]) } },
+    { g: "mkt", n: "حجم السوق واحتياجاته", nat: E("أكتوبر والعاشر الأقرب لأكبر كثافة عملاء (القاهرة الكبرى)، وبرج العرب لعملاء الإسكندرية والساحل والتصدير، والسخنة للتصدير عبر الميناء.") },
+    { g: "inf", n: "النقل", z: {
+      tenth: F("على طريق القاهرة الإسماعيلية الصحراوي. تقدير: ميناء العين السخنة نحو 120 كم تقريباً، فتحقق بخرائط جوجل.", [10]),
+      oct: F("مطار سفنكس الدولي قريب، وميناء جاف أكتوبر، وشبكة طرق 1,146.5 كم.", [12]),
+      bea: F("طريق 27 كم إلى الطريق الصحراوي (القاهرة الإسكندرية)، و8 كم إلى الطريق الساحلي، و13 كم إلى مطار برج العرب، وشبكة طرق نحو 630 كم، وقطار من محطة سيدي جابر.", [13]),
+      sok: F("ميناء العين السخنة بغاطس حتى 18 م ومساحة 22.3 كم²، ملاصق للمنطقة الصناعية، ومرتبط بالقاهرة بالطريق والسكة الحديد.", [7, 8]) } },
+    { g: "inf", n: "الضرائب: الأساس", nat: F("ضريبة أرباح الشركات 22.5%.", [6]) },
+    { g: "inf", n: "الحوافز الخاصة بالمنطقة", z: {
+      tenth: E("تخضع لحوافز قانون الاستثمار رقم 72 لسنة 2017 العامة، ولم أجد حافزاً خاصاً بالمنطقة."),
+      oct: F("44 رخصة ذهبية، وحوافز ضريبية للمستثمرين الأجانب بموجب القرار رقم 77 (حسب المصدر).", [12]),
+      bea: F("ملكية أجنبية 100% للشركات، ومزايا ضريبية وجمركية محتملة (حسب المطور).", [15]),
+      sok: F("تخفيض 50% من ضريبة الأرباح لأول 7 سنوات بحد أقصى 80% من رأس المال المدفوع. ضريبة قيمة مضافة 0% على مستلزمات التشغيل (14% على البيع للسوق المحلي خارج المنطقة). جمارك 0% على مواد وأدوات الإنشاء والتشغيل. ملكية أجنبية بلا قيود، وتحويل 100% من الأرباح، وعمالة أجنبية حتى 10%، وشباك واحد للتراخيص.", [6]) } },
+    { g: "inf", n: "المؤسسات المالية", nat: E("متوفرة بدرجة جيدة في أكتوبر والعاشر لقربهما من القاهرة، وأقل في برج العرب والسخنة مع خدمات الشباك الواحد في السخنة.") },
+    { g: "inf", n: "اللوائح البيئية", nat: E("المصانع الملوثة تحتاج دراسة تقييم أثر بيئي في كل المناطق، والمناطق الصناعية المخصصة أسهل في الترخيص من الأرض خارجها.") },
+    { g: "inf", n: "جودة الحياة والثقافة", nat: E("أكتوبر والعاشر الأعلى (مدن مكتملة الخدمات وقريبة من القاهرة)، وبرج العرب متوسطة، والسخنة الأقل لبعدها عن مراكز السكن.") }
+  ];
+  var LAND = [
+    { n: "العاشر من رمضان", own: 3300, usuf: 165 },
+    { n: "السادس من أكتوبر", own: 3220, usuf: 161, derived: true },
+    { n: "برج العرب الجديدة", own: 2440, usuf: 122, derived: true },
+    { n: "مدينة بدر", own: 3695, usuf: 185 }
+  ];
+  function numFmt(n) { return Math.round(n).toLocaleString("en-US"); }
+  function refLink(n) {
+    return h("a", { href: SRC[n].u, target: "_blank", rel: "noopener", "aria-label": "المصدر " + n, text: "[" + n + "]" });
+  }
+  function cellNode(c, span) {
+    var td = h("td", span ? { colspan: String(span) } : null);
+    if (!c) { td.className = "na"; td.textContent = NA; return td; }
+    if (c.est) td.className = "est"; else if (c.t.indexOf(NA) === 0) td.className = "na";
+    td.appendChild(document.createTextNode(c.t));
+    c.r.forEach(function (n) { td.appendChild(document.createTextNode(" ")); td.appendChild(refLink(n)); });
+    return td;
+  }
+  function renderFacts() {
+    var t = $("facts-table");
+    t.textContent = "";
+    var hr = h("tr", null, [h("th", { scope: "col", class: "fk", text: "النقطة" })]);
+    ZONES.forEach(function (z) { hr.appendChild(h("th", { scope: "col", "data-z": z.k, text: z.n })); });
+    t.appendChild(h("thead", null, [hr]));
+    var tb = h("tbody");
+    ROWS.forEach(function (r) {
+      var tr = h("tr", null, [h("th", { scope: "row", class: "fk" }, [h("i", { class: "gdot", style: "background:var(--" + r.g + ")" }), " " + r.n])]);
+      if (r.nat) { var c = cellNode(r.nat, ZONES.length); c.classList.add("natc"); tr.appendChild(c); }
+      else ZONES.forEach(function (z) { tr.appendChild(cellNode(r.z[z.k])); });
+      tb.appendChild(tr);
+    });
+    t.appendChild(tb);
+    var ol = $("srcs");
+    ol.textContent = "";
+    SRC.forEach(function (s, i) {
+      if (!s) return;
+      ol.appendChild(h("li", { value: String(i) }, [h("a", { href: s.u, target: "_blank", rel: "noopener", text: s.t })]));
+    });
+  }
+  function renderLand() {
+    var t = $("land-table"), msg = $("land-msg");
+    t.textContent = "";
+    var area = clamp($("plot").value, 0, 10000000);
+    if (!(area > 0)) { msg.textContent = "اكتب مساحة القطعة بالمتر المربع."; return; }
+    msg.textContent = "";
+    var tot = LAND.map(function (l) { return l.own * area; }), min = Math.min.apply(null, tot);
+    t.appendChild(h("thead", null, [h("tr", null, [
+      h("th", { scope: "col", text: "المكان" }), h("th", { scope: "col", text: "سعر المتر (تمليك)" }),
+      h("th", { scope: "col", text: "إجمالي سعر الأرض" }), h("th", { scope: "col", text: "دفعة مقدمة 25%" }),
+      h("th", { scope: "col", text: "دفعة مقدمة 10% (المسار الميسّر)" }), h("th", { scope: "col", text: "إيجار الانتفاع في السنة الأولى" })
+    ])]));
+    var tb = h("tbody");
+    LAND.forEach(function (l, i) {
+      var cheapest = tot[i] === min;
+      tb.appendChild(h("tr", null, [
+        h("th", { scope: "row", class: "fk" }, cheapest ? [l.n + " ", h("span", { class: "pill ok", text: "الأقل تكلفة" })] : [l.n]),
+        h("td", { text: numFmt(l.own) + " جنيه" }),
+        h("td", { text: numFmt(tot[i]) + " جنيه" }),
+        h("td", { text: numFmt(tot[i] * 0.25) + " جنيه" }),
+        h("td", { text: numFmt(tot[i] * 0.10) + " جنيه" }),
+        h("td", { text: numFmt(l.usuf * area) + " جنيه" + (l.derived ? " (محسوب)" : "") })
+      ]));
+    });
+    t.appendChild(tb);
+  }
+  function markMine() {
+    var mine = {};
+    state.locs.forEach(function (l) { var k = zoneKey(l); if (k) mine[k] = 1; });
+    document.querySelectorAll("#facts-table th[data-z]").forEach(function (th) { th.classList.toggle("mine", !!mine[th.getAttribute("data-z")]); });
+  }
+  function factsForPrompt() {
+    var lines = [], seen = {};
+    state.locs.forEach(function (l) {
+      var k = zoneKey(l);
+      if (!k || seen[k]) return;
+      seen[k] = 1;
+      if (k === "badr") { lines.push("حقائق عن " + l.trim() + ":\n- الأرض: سعر المتر الصناعي تمليكاً 3,695 جنيه، وحق الانتفاع 185 جنيه سنوياً (أغسطس 2026)."); return; }
+      var z = ZONES.filter(function (x) { return x.k === k; })[0], block = ["حقائق عن " + l.trim() + " (" + z.n + "):"];
+      ROWS.forEach(function (r) { if (r.z && r.z[k]) block.push("- " + r.n + ": " + r.z[k].t); });
+      lines.push(block.join("\n"));
+    });
+    var nat = ["حقائق تنطبق على كل المناطق:"];
+    ROWS.forEach(function (r) { if (r.nat && r.nat.t.indexOf(NA) !== 0) nat.push("- " + r.n + ": " + r.nat.t); });
+    lines.push(nat.join("\n"));
+    return lines.join("\n\n");
+  }
+  function missingFacts() {
+    var none = [], part = [];
+    state.locs.forEach(function (l) { var k = zoneKey(l); if (!k) none.push(l.trim()); else if (k === "badr") part.push(l.trim()); });
+    var out = [];
+    if (none.length) out.push("لا توجد حقائق موثقة لـ (" + none.join("، ") + ")، فتقييمها تقدير عام.");
+    if (part.length) out.push("لـ (" + part.join("، ") + ") سعر الأرض فقط، وباقي تقييمها تقدير عام.");
+    return out.join(" ");
+  }
+  function factsHtml() {
+    var o = ["<h2>الحقائق والأرقام الموثقة (تاريخ الاطلاع " + esc(ACCESSED) + ")</h2><table><tr><th>النقطة</th>"];
+    ZONES.forEach(function (z) { o.push("<th>" + esc(z.n) + "</th>"); });
+    o.push("</tr>");
+    function cell(c, span) {
+      var txt = c ? esc(c.t) + (c.r.length ? " [" + c.r.join("، ") + "]" : "") : NA;
+      return "<td" + (span ? ' colspan="' + span + '"' : "") + ">" + txt + "</td>";
+    }
+    ROWS.forEach(function (r) {
+      o.push("<tr><td>" + esc(r.n) + "</td>");
+      if (r.nat) o.push(cell(r.nat, ZONES.length));
+      else ZONES.forEach(function (z) { o.push(cell(r.z[z.k])); });
+      o.push("</tr>");
+    });
+    o.push("</table><h2>مصادر الحقائق</h2><ol>");
+    SRC.forEach(function (s, i) { if (s) o.push('<li value="' + i + '">' + esc(s.t) + " — " + esc(s.u) + "</li>"); });
+    o.push("</ol>");
+    return o.join("");
+  }
+
+  /* ---------- inputs: chips + locations ---------- */
+  var busy = false;
+  function renderChips() {
+    var p = $("plchips"); p.textContent = "";
+    p.appendChild(h("span", { class: "lbl", text: "أماكن شائعة:" }));
+    PLACES.forEach(function (t) { p.appendChild(h("button", { type: "button", class: "chip", "data-pl": t, text: t })); });
+  }
+  function renderLocs() {
+    var box = $("locs");
+    box.textContent = "";
+    state.locs.forEach(function (l, j) {
+      var inp = h("input", { type: "text", id: "loc-" + j, class: "loc-in", "data-j": String(j), "aria-label": "اسم المكان " + (j + 1), placeholder: "اسم المكان " + (j + 1), autocomplete: "off" });
+      inp.value = l;
+      var rm = h("button", { type: "button", class: "btn", "data-rm": String(j), "aria-label": "حذف المكان " + (j + 1), text: "حذف" });
+      rm.disabled = busy || nL() <= MINL;
+      inp.disabled = busy;
+      box.appendChild(h("div", { class: "locrow" }, [inp, rm]));
+    });
+    $("addloc").disabled = busy || nL() >= MAXL;
+  }
+
+  /* ---------- table ---------- */
+  var table = $("tbl");
+  function build() {
+    table.textContent = "";
+    var n = nL(), j;
+    table.appendChild(h("caption", { class: "sr", text: "أوزان العوامل وتقييم كل مكان من 0 إلى 10" }));
+    var hr = h("tr", null, [
+      h("th", { scope: "col", class: "c-factor", text: "العامل" }),
+      h("th", { scope: "col", text: "الوزن %" })
+    ]);
+    for (j = 0; j < n; j++) hr.appendChild(h("th", { scope: "col", "data-lh": String(j) }));
+    table.appendChild(h("thead", null, [hr]));
+
+    var tbody = h("tbody");
+    GKEYS.forEach(function (g) {
+      tbody.appendChild(h("tr", { class: "grow" }, [
+        h("td", { colspan: String(2 + n) }, [
+          h("i", { class: "gdot", style: "background:var(--" + g + ")" }),
+          h("span", { class: "gname", text: GROUPS[g] }),
+          h("span", { class: "gsum", "data-g": g })
+        ])
+      ]));
+      FACTORS.forEach(function (fa, i) {
+        if (fa.g !== g) return;
+        var tr = h("tr", null, [
+          h("th", { scope: "row", class: "c-factor" }, [
+            h("div", { class: "fname", text: fa.n }),
+            h("div", { class: "fhint", text: fa.h })
+          ]),
+          h("td", null, [h("input", { type: "number", min: "0", max: "100", step: "1", inputmode: "decimal", "data-k": "w", "data-i": String(i), "aria-label": "وزن " + fa.n })])
+        ]);
+        for (var jj = 0; jj < n; jj++) {
+          tr.appendChild(h("td", { class: "sc", "data-sc": i + "-" + jj }, [
+            h("input", { type: "number", min: "0", max: "10", step: "0.5", inputmode: "decimal", "data-k": "s", "data-i": String(i), "data-j": String(jj), "aria-label": fa.n + "، المكان " + (jj + 1) })
+          ]));
+        }
+        tbody.appendChild(tr);
+      });
+    });
+    table.appendChild(tbody);
+
+    var tf = h("tr", null, [
+      h("th", { scope: "row", class: "c-factor", text: "الدرجة النهائية من 10" }),
+      h("td", null, [h("span", { id: "wtot" })])
+    ]);
+    for (var k = 0; k < n; k++) tf.appendChild(h("td", { "data-tot": String(k) }, [h("span")]));
+    table.appendChild(h("tfoot", null, [tf]));
+  }
+
+  function syncInputs() {
+    $("product").value = state.product;
+    table.querySelectorAll("[data-k]").forEach(function (el) {
+      var k = el.getAttribute("data-k"), i = +el.getAttribute("data-i"), j = +el.getAttribute("data-j");
+      if (k === "w") el.value = state.f[i].w;
+      else if (k === "s") el.value = state.f[i].s[j];
+    });
+  }
+
+  /* ---------- render ---------- */
+  function renderWinner(base, order) {
+    var box = $("winner");
+    box.textContent = "";
+    if (weightSum() <= 0) {
+      box.appendChild(h("div", { class: "wname", text: "أدخل أوزاناً أكبر من صفر" }));
+      return;
+    }
+    var w = order[0], s = order[1], diff = base[w].total - base[s].total, note;
+    if (diff < 0.005) note = "تعادل مع " + name(s) + ". غيّر الأوزان أو التقييمات لحسم القرار.";
+    else if (diff < 0.25) note = "يتفوق على " + name(s) + " بفارق " + fmt(diff) + " فقط، والفرق صغير فراجع الأوزان والتقييمات قبل الحسم.";
+    else note = "يتفوق على " + name(s) + " بفارق " + fmt(diff) + " نقطة.";
+    box.appendChild(h("span", { class: "badge", text: "المكان الأنسب حالياً" }));
+    box.appendChild(h("div", { class: "wname", text: name(w) }));
+    box.appendChild(h("div", { class: "wscore" }, [h("b", { text: fmt(base[w].total) }), " / 10"]));
+    box.appendChild(h("p", { class: "wnote", text: note }));
+  }
+
+  function renderRank(base, order) {
+    var box = $("rank");
+    box.textContent = "";
+    order.forEach(function (j, pos) {
+      var r = base[j], track = h("div", { class: "track" });
+      GKEYS.forEach(function (g) {
+        track.appendChild(h("span", {
+          class: "seg",
+          style: "width:" + (r[g] / 10 * 100) + "%;background:var(--" + g + ")",
+          title: GROUPS[g] + ": " + fmt(r[g])
+        }));
+      });
+      box.appendChild(h("div", { class: "row" + (pos === 0 ? " first" : "") }, [
+        h("span", { class: "pos", text: String(pos + 1) }),
+        h("span", { class: "rname", text: name(j) }),
+        h("span", { class: "rval", text: fmt(r.total) }),
+        track
+      ]));
+    });
+  }
+
+  function renderTable(base, order) {
+    var total = weightSum();
+    table.querySelectorAll("[data-sc]").forEach(function (td) {
+      var p = td.getAttribute("data-sc").split("-"), i = +p[0], j = +p[1];
+      var mx = Math.max.apply(null, state.f[i].s);
+      td.className = "sc h" + Math.round(state.f[i].s[j]) + ((mx > 0 && state.f[i].s[j] === mx) ? " best" : "");
+    });
+    table.querySelectorAll("[data-g]").forEach(function (el) {
+      el.textContent = "مجموع الأوزان " + groupSum(el.getAttribute("data-g")) + "%";
+    });
+    table.querySelectorAll("[data-lh]").forEach(function (th) { th.textContent = name(+th.getAttribute("data-lh")); });
+    table.querySelectorAll("[data-tot]").forEach(function (td) {
+      var j = +td.getAttribute("data-tot");
+      td.firstChild.textContent = fmt(base[j].total);
+      td.className = (total > 0 && order[0] === j) ? "win" : "";
+    });
+    $("wtot").textContent = total + "%";
+    var st = $("wstatus");
+    if (total === 100) { st.className = "pill ok"; st.textContent = "مجموع الأوزان 100%"; }
+    else { st.className = "pill warn"; st.textContent = "مجموع الأوزان " + total + "% (تُحسب النتيجة بالنسبة)"; }
+  }
+
+  function renderNotes() {
+    var card = $("notes-card"), ul = $("notes");
+    ul.textContent = "";
+    var has = state.src === "ai" && state.notes.some(Boolean);
+    card.hidden = !has;
+    if (!has) return;
+    state.locs.forEach(function (_, j) {
+      ul.appendChild(h("li", null, [h("b", { text: name(j) + ": " }), state.notes[j] || "بدون تعليق"]));
+    });
+  }
+
+  function renderReasons() {
+    var box = $("reasons");
+    box.textContent = "";
+    var has = state.f.some(function (f) { return f.r.some(Boolean); });
+    if (!has) {
+      box.appendChild(h("p", { class: "hint", text: "تظهر هنا جملة تبرر كل تقييم بعد التحليل بالذكاء الاصطناعي." }));
+      return;
+    }
+    FACTORS.forEach(function (fa, i) {
+      var items = state.locs.map(function (_, j) {
+        return h("li", null, [h("b", { text: name(j) + ": " }), state.f[i].r[j] || "بدون تعليق"]);
+      });
+      box.appendChild(h("div", { class: "rs" }, [
+        h("div", { class: "fname", text: fa.n + " (" + GROUPS[fa.g] + ")" }),
+        h("ul", { class: "rl" }, items)
+      ]));
+    });
+  }
+
+  function renderSens(sens) {
+    var changed = sens.filter(function (x) { return !x.same; }).map(function (x) { return GROUPS[x.g]; });
+    $("sens-line").textContent = changed.length
+      ? "حساسية القرار: يتغير الفائز عند رفع وزن (" + changed.join("، ") + ") بنسبة 50%."
+      : "حساسية القرار: الفائز ثابت عند رفع وزن أي مجموعة بنسبة 50%.";
+  }
+
+  function reportText(base, order, sens) {
+    var total = weightSum();
+    var prod = state.product.trim() || "المنتج";
+    if (total <= 0) return "أدخل أوزاناً أكبر من صفر لتظهر الفقرة.";
+    var gw = {};
+    GKEYS.forEach(function (g) { gw[g] = Math.round(groupSum(g) / total * 100); });
+    var ranked = order.map(function (j, p) { return name(j) + (p === 0 ? " بدرجة " + fmt(base[j].total) + " من 10" : " (" + fmt(base[j].total) + ")"); });
+    var diff = base[order[0]].total - base[order[1]].total;
+    var changed = sens.filter(function (s) { return !s.same; }).map(function (s) { return GROUPS[s.g]; });
+    var sensText = changed.length === 0
+      ? "ولم يتغير المكان الأول عند رفع وزن أي مجموعة بنسبة 50%، مما يدعم ثبات القرار."
+      : "غير أن المكان الأول يتغير عند رفع وزن (" + changed.join("، ") + ")، فالقرار حساس لهذه المجموعة ويستلزم تدقيق بياناتها.";
+    var srcText = state.src === "ai"
+      ? " اعتمدت الأوزان والتقييمات على تقدير أولي بالذكاء الاصطناعي، ويلزم التحقق منها من مصادر رسمية."
+      : "";
+    return "تم تقييم " + nL() + " أماكن لإقامة مصنع " + prod + " بطريقة التقييم بالأوزان (Weighted Factor Rating) اعتماداً على " + FACTORS.length +
+      " عاملاً موزعة على ثلاث مجموعات: الموارد (" + gw.res + "%)، والسوق (" + gw.mkt + "%)، والبنية التحتية (" + gw.inf + "%). " +
+      "جاء في المرتبة الأولى " + ranked[0] + "، ثم " + ranked.slice(1).join("، ثم ") + ". " +
+      "بلغ الفارق بين المكانين الأولين " + fmt(diff) + " نقطة. " + sensText + srcText;
+  }
+
+  function renderMethod() {
+    if (!$("example")) return;
+    var f = state.f[0];
+    $("example").textContent = "مثال بالأرقام الحالية: عامل «" + FACTORS[0].n + "» بوزن " + f.w + " وتقييم " + f.s[0] + " في " + name(0) + " يعطي " + f.w + " × " + f.s[0] + " = " + (f.w * f.s[0]) + " نقطة موزونة.";
+  }
+
+  function renderSrc() {
+    var pill = $("srcpill"), note = $("srcnote");
+    if (state.src === "ai") {
+      if (state.stamp !== stampNow()) {
+        pill.className = "pill warn"; pill.textContent = "المدخلات تغيرت";
+        note.textContent = "الأرقام الحالية تخص النشاط والأماكن وقت آخر تحليل. اضغط «حلل بالذكاء الاصطناعي» لتحديثها.";
+      } else {
+        pill.className = "pill ok"; pill.textContent = state.edited ? "تقدير الذكاء الاصطناعي مع تعديلاتك" : "تقدير الذكاء الاصطناعي";
+        note.textContent = "التقييمات من الذكاء الاصطناعي، وبُنيت على الحقائق الموثقة في قسم «الحقائق والأرقام الموثقة» للمناطق المتوفرة، وعلى معرفته العامة للباقي بدون بحث في الإنترنت. راجع الأرقام من مصادر رسمية وعدّل ما تراه غير دقيق.";
+      }
+    } else {
+      pill.className = "pill warn"; pill.textContent = "مثال توضيحي";
+      note.textContent = "الأرقام الحالية مثال لا يخص نشاطك. اكتب النشاط والأماكن ثم عدّل الأوزان والتقييمات في الجدول بأرقامك، واستعن بقسم الحقائق والأرقام.";
+    }
+  }
+
+  function update() {
+    var base = calc(), order = rankOf(base), sens = sensitivity(order[0]);
+    renderWinner(base, order);
+    renderRank(base, order);
+    renderTable(base, order);
+    renderNotes();
+    renderReasons();
+    renderSens(sens);
+    $("report").textContent = reportText(base, order, sens);
+    renderMethod();
+    renderSrc();
+    markMine();
+    save();
+  }
+
+  function rebuildAll() { renderLocs(); build(); syncInputs(); update(); }
+
+  /* ---------- events ---------- */
+  renderChips();
+  renderFacts();
+  renderLand();
+  $("plot").addEventListener("input", renderLand);
+  rebuildAll();
+
+  table.addEventListener("input", function (e) {
+    var t = e.target, k = t.getAttribute && t.getAttribute("data-k");
+    if (!k) return;
+    var i = +t.getAttribute("data-i"), j = +t.getAttribute("data-j");
+    if (k === "w") state.f[i].w = clamp(t.value, 0, 100);
+    else if (k === "s") state.f[i].s[j] = clamp(t.value, 0, 10);
+    state.edited = true;
+    update();
+  });
+  table.addEventListener("change", function (e) {
+    var t = e.target, k = t.getAttribute && t.getAttribute("data-k");
+    if (k === "w") t.value = state.f[+t.getAttribute("data-i")].w;
+    else if (k === "s") t.value = state.f[+t.getAttribute("data-i")].s[+t.getAttribute("data-j")];
+  });
+
+  $("product").addEventListener("input", function (e) { state.product = e.target.value; update(); });
+  $("product").addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && !$("analyze").disabled && !$("analyze").hidden) { e.preventDefault(); $("analyze").click(); }
+  });
+  $("plchips").addEventListener("click", function (e) {
+    var b = e.target.closest ? e.target.closest("[data-pl]") : null;
+    if (!b || busy) return;
+    var p = b.getAttribute("data-pl");
+    if (state.locs.some(function (l) { return l.trim() === p; })) { $("aimsg").textContent = "«" + p + "» مضاف بالفعل."; return; }
+    var empty = -1;
+    state.locs.forEach(function (l, j) { if (empty < 0 && !l.trim()) empty = j; });
+    if (empty >= 0) state.locs[empty] = p;
+    else if (nL() < MAXL) setLocs(state.locs.concat([p]));
+    else { $("aimsg").textContent = "الحد الأقصى 5 أماكن. احذف مكاناً أولاً."; return; }
+    $("aimsg").textContent = "";
+    rebuildAll();
+  });
+
+  $("locs").addEventListener("input", function (e) {
+    var t = e.target;
+    if (!t.classList || !t.classList.contains("loc-in")) return;
+    state.locs[+t.getAttribute("data-j")] = t.value;
+    update();
+  });
+  $("locs").addEventListener("click", function (e) {
+    var b = e.target.closest ? e.target.closest("[data-rm]") : null;
+    if (!b || busy || nL() <= MINL) return;
+    var j = +b.getAttribute("data-rm");
+    state.locs.splice(j, 1);
+    state.f.forEach(function (f) { f.s.splice(j, 1); f.r.splice(j, 1); });
+    state.notes.splice(j, 1);
+    rebuildAll();
+  });
+  $("addloc").addEventListener("click", function () {
+    if (nL() >= MAXL) return;
+    setLocs(state.locs.concat([""]));
+    rebuildAll();
+    var el = $("loc-" + (nL() - 1));
+    if (el) el.focus();
+  });
+
+  $("normalize").addEventListener("click", function () { normalizeWeights(); syncInputs(); update(); });
+
+  var armed = false, timer = null, resetBtn = $("reset");
+  function disarm() { armed = false; resetBtn.textContent = "استرجاع المثال الأصلي"; }
+  resetBtn.addEventListener("click", function () {
+    if (!armed) { armed = true; resetBtn.textContent = "اضغط مرة أخرى للتأكيد"; timer = setTimeout(disarm, 3500); return; }
+    clearTimeout(timer); disarm();
+    state = defaults(); rebuildAll();
+  });
+
+  $("copy").addEventListener("click", function () {
+    var rep = $("report"), msg = $("copymsg");
+    function sel() {
+      var r = document.createRange(); r.selectNodeContents(rep);
+      var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+    }
+    try {
+      navigator.clipboard.writeText(rep.textContent).then(
+        function () { msg.textContent = "تم النسخ"; },
+        function () { sel(); msg.textContent = "حُدد النص، انسخه يدوياً"; }
+      );
+    } catch (err) { sel(); msg.textContent = "حُدد النص، انسخه يدوياً"; }
+  });
+
+  /* ---------- export (downloads capability) ---------- */
+  var dl = null;
+  function buildHtmlReport() {
+    var base = calc(), order = rankOf(base), sens = sensitivity(order[0]), n = nL();
+    var prod = state.product.trim() || "المنتج";
+    var date = new Date().toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" });
+    var o = [];
+    o.push('<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>تقرير اختيار موقع المصنع</title>');
+    o.push("<style>body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;line-height:1.8;color:#14212B;max-width:900px;margin:24px auto;padding:0 16px}h1{font-size:24px}h2{font-size:18px;margin-top:28px;border-bottom:2px solid #1B5E80;padding-bottom:4px}table{border-collapse:collapse;width:100%;margin:10px 0}th,td{border:1px solid #9AAAB7;padding:6px 8px;text-align:center}th{background:#E8EDF1}td:first-child,th:first-child{text-align:right}.n{color:#56677A;font-size:13px}</style></head><body>");
+    o.push("<h1>تقرير اختيار موقع مصنع " + esc(prod) + "</h1>");
+    o.push('<p class="n">المقرر: أبحاث صناعية وهندسة صناعية. الطريقة: التقييم بالأوزان (Weighted Factor Rating). التاريخ: ' + esc(date) + "</p>");
+    if (state.src === "ai") o.push('<p class="n">الأوزان والتقييمات تقدير أولي بالذكاء الاصطناعي، ويلزم التحقق منها من مصادر رسمية.</p>');
+    o.push("<h2>النتيجة</h2><table><tr><th>الترتيب</th><th>المكان</th><th>الدرجة من 10</th><th>الموارد</th><th>السوق</th><th>البنية التحتية</th></tr>");
+    order.forEach(function (j, p) {
+      o.push("<tr><td>" + (p + 1) + "</td><td>" + esc(name(j)) + "</td><td>" + fmt(base[j].total) + "</td><td>" + fmt(base[j].res) + "</td><td>" + fmt(base[j].mkt) + "</td><td>" + fmt(base[j].inf) + "</td></tr>");
+    });
+    o.push("</table>");
+    o.push("<h2>جدول التقييم</h2><table><tr><th>العامل</th><th>المجموعة</th><th>الوزن</th>");
+    state.locs.forEach(function (_, j) { o.push("<th>" + esc(name(j)) + "</th>"); });
+    o.push("</tr>");
+    FACTORS.forEach(function (fa, i) {
+      o.push("<tr><td>" + esc(fa.n) + "</td><td>" + GROUPS[fa.g] + "</td><td>" + state.f[i].w + "</td>");
+      for (var j = 0; j < n; j++) o.push("<td>" + state.f[i].s[j] + "</td>");
+      o.push("</tr>");
+    });
+    o.push("<tr><th>الدرجة النهائية</th><th></th><th>" + weightSum() + "</th>");
+    for (var k = 0; k < n; k++) o.push("<th>" + fmt(base[k].total) + "</th>");
+    o.push("</tr></table>");
+    if (state.src === "ai" && state.notes.some(Boolean)) {
+      o.push("<h2>نظرة سريعة على كل مكان</h2><ul>");
+      state.locs.forEach(function (_, j) { if (state.notes[j]) o.push("<li><b>" + esc(name(j)) + ":</b> " + esc(state.notes[j]) + "</li>"); });
+      o.push("</ul>");
+    }
+    if (state.f.some(function (f) { return f.r.some(Boolean); })) {
+      o.push("<h2>مبررات التقييم</h2>");
+      FACTORS.forEach(function (fa, i) {
+        o.push("<p><b>" + esc(fa.n) + "</b></p><ul>");
+        state.locs.forEach(function (_, j) { if (state.f[i].r[j]) o.push("<li>" + esc(name(j)) + ": " + esc(state.f[i].r[j]) + "</li>"); });
+        o.push("</ul>");
+      });
+    }
+    o.push(factsHtml());
+    o.push("<h2>اختبار الحساسية</h2><ul>");
+    sens.forEach(function (s) { o.push("<li>عند رفع وزن " + GROUPS[s.g] + " بنسبة 50%: الفائز " + esc(name(s.winner)) + (s.same ? " (ثابت)" : " (تغيّر)") + "</li>"); });
+    o.push("</ul><h2>الخلاصة</h2><p>" + esc(reportText(base, order, sens)) + "</p></body></html>");
+    return o.join("");
+  }
+  function buildCsv() {
+    function q(s) { return '"' + String(s).replace(/"/g, '""') + '"'; }
+    var rows = [["العامل", "المجموعة", "الوزن"].concat(state.locs.map(function (_, j) { return name(j); }))];
+    FACTORS.forEach(function (fa, i) { rows.push([fa.n, GROUPS[fa.g], state.f[i].w].concat(state.f[i].s)); });
+    var base = calc();
+    rows.push(["الدرجة النهائية", "", weightSum()].concat(base.map(function (b) { return fmt(b.total); })));
+    return "﻿" + rows.map(function (r) { return r.map(q).join(","); }).join("\r\n");
+  }
+  function doSave(filename, data) {
+    var msg = $("copymsg");
+    if (!dl) return;
+    dl.save({ filename: filename, data: data }).then(
+      function () { msg.textContent = "تم حفظ الملف"; },
+      function (e) { msg.textContent = (e && e.code === "declined") ? "لم يتم حفظ الملف." : "تعذر حفظ الملف في هذا العرض."; }
+    );
+  }
+  $("dlhtml").addEventListener("click", function () { doSave("تقرير-اختيار-موقع-المصنع.html", buildHtmlReport()); });
+  $("dlcsv").addEventListener("click", function () { doSave("جدول-تقييم-المواقع.csv", buildCsv()); });
+  try {
+    if (window.claude && window.claude.use) {
+      window.claude.use("downloads").then(function (d) {
+        dl = d || null;
+        $("dlhtml").hidden = !dl; $("dlcsv").hidden = !dl;
+      }, function () {});
+    }
+  } catch (e) {}
+
+  if (!(window.claude && window.claude.use)) {
+    dl = { save: function (r) { return new Promise(function (res) {
+      var b = new Blob([r.data], { type: /\.csv$/.test(r.filename) ? "text/csv;charset=utf-8" : "text/html;charset=utf-8" });
+      var a = document.createElement("a"); a.href = URL.createObjectURL(b);
+      a.download = /\.csv$/.test(r.filename) ? "location-scores.csv" : "location-report.html";
+      document.body.appendChild(a); a.click(); a.remove(); res({ status: "saved" });
+    }); } };
+    $("dlhtml").hidden = false; $("dlcsv").hidden = false;
+  }
+
+  /* ---------- AI (sample capability) ---------- */
+  var sampleFn = null, ctl = null, tick = null;
+  var btn = $("analyze"), stopBtn = $("stop"), sugBtn = $("suggest"), aimsg = $("aimsg");
+
+  function aiReady(fn) {
+    sampleFn = fn || null;
+    if (sampleFn) { btn.disabled = false; sugBtn.hidden = false; aimsg.textContent = ""; }
+    else { btn.hidden = true; sugBtn.hidden = true; aimsg.textContent = "أدخل الأوزان والتقييمات يدوياً في الجدول."; }
+  }
+  try {
+    if (window.claude && window.claude.use) window.claude.use("sample").then(aiReady, function () { aiReady(null); });
+    else aiReady(null);
+  } catch (e) { aiReady(null); }
+
+  function errCopy(code) {
+    switch (code) {
+      case "not_granted": return "لم تسمح بتشغيل الذكاء الاصطناعي داخل الصفحة. اسمح بذلك من قائمة الأذونات أو أدخل الأرقام يدوياً.";
+      case "rate_limited": return "وصلت للحد المسموح مؤقتاً. جرّب بعد قليل.";
+      case "refused": return "تعذر تحليل هذا المدخل. غيّر النشاط أو أسماء الأماكن وجرّب مرة أخرى.";
+      case "invalid_json":
+      case "bad_shape":
+      case "empty_completion": return "لم يرجع الرد بصيغة صالحة. اضغط الزر مرة أخرى.";
+      case "session_expired": return "انتهت الجلسة. سجّل الدخول مرة أخرى ثم أعد المحاولة.";
+      default: return "حدث خطأ أثناء التنفيذ. جرّب مرة أخرى.";
+    }
+  }
+  function setBusy(on, which) {
+    busy = on;
+    btn.disabled = on; sugBtn.disabled = on;
+    stopBtn.hidden = !on;
+    $("product").disabled = on;
+    document.querySelectorAll(".chip").forEach(function (c) { c.disabled = on; });
+    renderLocs();
+    if (!on && tick) { clearInterval(tick); tick = null; }
+    if (on) {
+      var secs = 0, label = which === "suggest" ? "جارٍ اقتراح الأماكن..." : "جارٍ التحليل، قد يستغرق حتى دقيقة...";
+      aimsg.textContent = label;
+      tick = setInterval(function () { secs++; aimsg.textContent = label + " (" + secs + " ث)"; }, 1000);
+    }
+  }
+  function validInputs() {
+    if (!state.product.trim()) { aimsg.textContent = "اكتب نوع النشاط أولاً."; $("product").focus(); return false; }
+    var empty = -1;
+    state.locs.forEach(function (l, j) { if (empty < 0 && !l.trim()) empty = j; });
+    if (empty >= 0) { aimsg.textContent = "اكتب اسم كل مكان قبل التحليل."; var el = $("loc-" + empty); if (el) el.focus(); return false; }
+    return true;
+  }
+  function handleErr(e) {
+    setBusy(false);
+    var code = e && e.code;
+    if (code === "cancelled") aimsg.textContent = "تم الإيقاف.";
+    else if (code === "sampling_disabled" || code === "not_declared" || code === "capability_disabled" || code === "capability_removed") aiReady(null);
+    else aimsg.textContent = errCopy(code);
+  }
+
+  function buildPrompt() {
+    var locs = state.locs.map(function (_, j) { return (j + 1) + ". " + name(j); }).join("\n");
+    var facs = FACTORS.map(function (f, i) { return (i + 1) + ". " + f.n + " (" + GROUPS[f.g] + ": " + f.h + ")"; }).join("\n");
+    return [
+      "أنت خبير في اختيار مواقع المصانع والمناطق الصناعية، وخاصة في مصر.",
+      "النشاط أو المنتج: " + state.product.trim(),
+      "الأماكن المراد المقارنة بينها (بهذا الترتيب):\n" + locs,
+      "عوامل اختيار الموقع (بهذا الترتيب):\n" + facs,
+      "حقائق موثقة من مصادر منشورة (تاريخ الاطلاع " + ACCESSED + "):\n" + factsForPrompt(),
+      "المطلوب:",
+      "- لكل عامل وزن عددي صحيح يعكس أهميته لهذا النشاط تحديداً، ومجموع الأوزان 100 بالضبط.",
+      "- لكل عامل ولكل مكان تقييم من 0 إلى 10 (يسمح بنصف درجة)، والأعلى هو الأفضل للشركة، فالتكلفة الأقل أو القرب الأكبر يأخذ درجة أعلى.",
+      "- لكل تقييم مبرر بالعربية لا يزيد على 18 كلمة. اعتمد على الحقائق الموثقة المرفقة أعلاه عند وجودها ولا تخالفها، واذكر الرقم نفسه في المبرر حين تستخدمه. الأماكن التي لا توجد لها حقائق مرفقة قدّرها بحذر وابدأ مبرراتها بكلمة (تقدير). ليس لديك وصول للإنترنت، ولا تخترع أرقاماً لست متأكداً منها.",
+      "- لكل مكان جملة واحدة قصيرة (notes) تذكر أبرز ميزة وأبرز عيب له لهذا النشاط.",
+      "أرجع JSON فقط بهذا الشكل. مصفوفة factors بعدد " + FACTORS.length + " عنصراً في نفس ترتيب العوامل، ومصفوفات s و r و notes بعدد الأماكن " + nL() + " وبنفس ترتيبها:",
+      '{"notes":["جملة المكان الأول","جملة المكان الثاني"],"factors":[{"w":12,"s":[8,7],"r":["مبرر المكان الأول","مبرر المكان الثاني"]}]}'
+    ].join("\n\n");
+  }
+
+  btn.addEventListener("click", function () {
+    if (!sampleFn || busy || !validInputs()) return;
+    ctl = new AbortController();
+    setBusy(true, "analyze");
+    sampleFn.json(buildPrompt(), { signal: ctl.signal, modelTier: "default" }).then(function (data) {
+      var list = data && data.factors, n = nL();
+      if (!Array.isArray(list) || list.length !== FACTORS.length) throw { code: "bad_shape" };
+      state.f = list.map(function (x) {
+        x = x || {};
+        var s = [], r = [];
+        for (var j = 0; j < n; j++) {
+          var v = parseFloat(x.s && x.s[j]);
+          s.push(isFinite(v) ? Math.round(clamp(v, 0, 10) * 2) / 2 : 5);
+          r.push(x.r && x.r[j] ? String(x.r[j]) : "");
+        }
+        return { w: clamp(x.w, 0, 100), s: s, r: r };
+      });
+      state.notes = state.locs.map(function (_, j) { return data.notes && data.notes[j] ? String(data.notes[j]) : ""; });
+      normalizeWeights();
+      state.src = "ai"; state.edited = false; state.stamp = stampNow();
+      setBusy(false);
+      syncInputs(); update();
+      var mf = missingFacts(); aimsg.textContent = "تم التحليل. راجع الأرقام وعدّل ما تراه غير دقيق." + (mf ? " " + mf : "");
+      try {
+        var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        $("winner").scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+      } catch (e) {}
+    }).catch(handleErr);
+  });
+
+  sugBtn.addEventListener("click", function () {
+    if (!sampleFn || busy) return;
+    if (!state.product.trim()) { aimsg.textContent = "اكتب نوع النشاط أولاً ليقترح التطبيق أماكن مناسبة."; $("product").focus(); return; }
+    ctl = new AbortController();
+    setBusy(true, "suggest");
+    var p = "اقترح 4 مناطق أو مدن صناعية في مصر مناسبة لإقامة مصنع للنشاط التالي: " + state.product.trim() +
+      ". أرجع JSON فقط على شكل مصفوفة من 4 نصوص، كل نص اسم منطقة بالعربية فقط بدون شرح. مثال: [\"العاشر من رمضان\",\"برج العرب\"]";
+    sampleFn.json(p, { signal: ctl.signal, modelTier: "quick" }).then(function (list) {
+      if (!Array.isArray(list)) throw { code: "bad_shape" };
+      var names = list.map(function (x) { return String(x).trim(); }).filter(Boolean).slice(0, MAXL);
+      if (names.length < MINL) throw { code: "bad_shape" };
+      setLocs(names);
+      setBusy(false);
+      rebuildAll();
+      aimsg.textContent = "تم اقتراح " + names.length + " أماكن. عدّلها إن أردت ثم اضغط «حلل بالذكاء الاصطناعي».";
+    }).catch(handleErr);
+  });
+
+  stopBtn.addEventListener("click", function () { if (ctl) ctl.abort(); });
+})();
+</script>
+
+</body></html>
